@@ -1,24 +1,37 @@
-import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
-import { streamText } from "ai";
-
-export const runtime = "edge";
-export const maxDuration = 30;
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import prisma from "@/lib/prisma";
 
 export async function POST(req: Request) {
-  const { messages, system, tools } = await req.json();
+  const session = await getServerSession(authOptions);
 
-  const result = streamText({
-    model: openai("gpt-4o"),
-    messages,
-    // forward system prompt and tools from the frontend
-    toolCallStreaming: true,
-    system,
-    tools: {
-      ...frontendTools(tools),
-    },
-    onError: console.log,
+  if (!session || !session.user?.email) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const { message } = await req.json();
+
+  if (!message || message.trim() === "") {
+    return new Response("Message required", { status: 400 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
   });
 
-  return result.toDataStreamResponse();
+  if (!user) {
+    return new Response("User not found", { status: 404 });
+  }
+
+  const newMessage = await prisma.chat.create({
+    data: {
+      message,
+      userId: user.id,
+    },
+  });
+
+  return new Response(JSON.stringify(newMessage), {
+    headers: { "Content-Type": "application/json" },
+    status: 200,
+  });
 }
