@@ -2,36 +2,31 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import prisma from "@/lib/prisma";
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
 
-  if (!session || !session.user?.email) {
-    return new Response("Unauthorized", { status: 401 });
+    if (!session || !session.user?.email) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const messages = await prisma.chat.findMany({
+      where: { user: { email: session.user.email } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return new Response(JSON.stringify({ messages }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    console.error("Chat fetch error:", err);
+    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
-
-  const { message } = await req.json();
-
-  if (!message || message.trim() === "") {
-    return new Response("Message required", { status: 400 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-  });
-
-  if (!user) {
-    return new Response("User not found", { status: 404 });
-  }
-
-  const newMessage = await prisma.chat.create({
-    data: {
-      message,
-      userId: user.id,
-    },
-  });
-
-  return new Response(JSON.stringify(newMessage), {
-    headers: { "Content-Type": "application/json" },
-    status: 200,
-  });
 }
