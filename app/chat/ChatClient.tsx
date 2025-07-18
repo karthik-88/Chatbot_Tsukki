@@ -10,12 +10,11 @@ interface ChatMessage {
 
 interface ChatClientProps {
   messages: ChatMessage[];
-  userEmail: string;
 }
 
-export default function ChatClient({ messages, userEmail }: ChatClientProps) {
+export default function ChatClient({ messages }: ChatClientProps) {
   const [input, setInput] = useState("");
-  const [chat, setChat] = useState<ChatMessage[]>(messages);
+  const [chat, setChat] = useState<ChatMessage[]>(messages || []);
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleSend() {
@@ -36,7 +35,7 @@ export default function ChatClient({ messages, userEmail }: ChatClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ role: "user", content: input }],
+          messages: [{ role: "user", content: userMessage.message }],
         }),
       });
 
@@ -49,7 +48,8 @@ export default function ChatClient({ messages, userEmail }: ChatClientProps) {
       };
 
       setChat((prev) => [...prev, botMessage]);
-    } catch (error) {
+    } catch (err) {
+      console.error("Error talking to Gemini:", err);
       const errorMessage: ChatMessage = {
         id: Date.now() + 2,
         message: "Error talking to Gemini.",
@@ -64,6 +64,7 @@ export default function ChatClient({ messages, userEmail }: ChatClientProps) {
 
   function handleClear() {
     setChat([]);
+    setInput("");
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
