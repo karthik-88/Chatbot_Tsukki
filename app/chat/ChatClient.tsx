@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ChatMessage {
   id: number;
@@ -8,23 +8,14 @@ interface ChatMessage {
   createdAt: string;
 }
 
-interface ChatClientProps {
-  messages: ChatMessage[];
-  userEmail: string;
-}
-
-export default function ChatClient({ messages, userEmail }: ChatClientProps) {
+export default function ChatClient({ messages }: { messages: ChatMessage[] }) {
+  const [chat, setChat] = useState<ChatMessage[]>(messages);
   const [input, setInput] = useState("");
-  const [chat, setChat] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setChat(messages);
-  }, [messages]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    containerRef.current?.scrollTo({ top: containerRef.current.scrollHeight, behavior: "smooth" });
   }, [chat]);
 
   async function handleSend() {
@@ -44,16 +35,14 @@ export default function ChatClient({ messages, userEmail }: ChatClientProps) {
       const res = await fetch("/api/ai-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: input }],
-        }),
+        body: JSON.stringify({ messages: [{ role: "user", content: userMessage.message }] }),
       });
 
       const data = await res.json();
 
       const botMessage: ChatMessage = {
         id: Date.now() + 1,
-        message: data?.message || "Gemini didn't respond.",
+        message: data.message || "Gemini didn't respond.",
         createdAt: new Date().toISOString(),
       };
 
@@ -61,31 +50,20 @@ export default function ChatClient({ messages, userEmail }: ChatClientProps) {
     } catch {
       setChat((prev) => [
         ...prev,
-        {
-          id: Date.now() + 2,
-          message: "Error talking to Gemini.",
-          createdAt: new Date().toISOString(),
-        },
+        { id: Date.now() + 2, message: "Error talking to Gemini.", createdAt: new Date().toISOString() },
       ]);
     } finally {
       setIsLoading(false);
     }
   }
 
-  function handleClear() {
-    setChat([]);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+  function handleKeyPress(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") handleSend();
   }
 
   return (
     <div>
-      <div className="space-y-2 mb-4 h-[500px] overflow-y-auto p-2 border rounded bg-white">
+      <div ref={containerRef} className="space-y-2 mb-4 h-[500px] overflow-y-auto p-2 border rounded bg-white">
         {chat.map((msg) => (
           <div key={msg.id} className="p-2 bg-gray-100 rounded shadow-sm">
             <div className="text-xs text-gray-500 mb-1">
@@ -94,10 +72,7 @@ export default function ChatClient({ messages, userEmail }: ChatClientProps) {
             <div>{msg.message}</div>
           </div>
         ))}
-        {isLoading && (
-          <div className="p-2 italic text-gray-500">Gemini is typing...</div>
-        )}
-        <div ref={chatEndRef} />
+        {isLoading && <div className="p-2 italic text-gray-500">Gemini is typing...</div>}
       </div>
 
       <div className="flex space-x-2 mb-2">
@@ -106,7 +81,7 @@ export default function ChatClient({ messages, userEmail }: ChatClientProps) {
           placeholder="Type a message..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={handleKeyPress}
           disabled={isLoading}
         />
         <button
@@ -115,13 +90,6 @@ export default function ChatClient({ messages, userEmail }: ChatClientProps) {
           disabled={isLoading}
         >
           {isLoading ? "Sending..." : "Send"}
-        </button>
-        <button
-          className="bg-gray-400 text-white px-4 py-2 rounded"
-          onClick={handleClear}
-          disabled={isLoading}
-        >
-          Clear
         </button>
       </div>
     </div>

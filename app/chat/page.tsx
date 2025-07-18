@@ -29,8 +29,7 @@ export default async function ChatPage() {
           <button className="bg-red-500 text-white px-4 py-2 rounded">Logout</button>
         </form>
       </div>
-
-      <ChatClient messages={messages} userEmail={session.user.email} />
+      <ChatClient messages={messages} />
     </div>
   );
 }
