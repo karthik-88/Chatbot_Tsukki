@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface ChatMessage {
   id: number;
@@ -10,12 +10,22 @@ interface ChatMessage {
 
 interface ChatClientProps {
   messages: ChatMessage[];
+  userEmail: string;
 }
 
-export default function ChatClient({ messages }: ChatClientProps) {
+export default function ChatClient({ messages, userEmail }: ChatClientProps) {
   const [input, setInput] = useState("");
-  const [chat, setChat] = useState<ChatMessage[]>(messages || []);
+  const [chat, setChat] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setChat(messages);
+  }, [messages]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chat]);
 
   async function handleSend() {
     if (!input.trim()) return;
@@ -35,7 +45,7 @@ export default function ChatClient({ messages }: ChatClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ role: "user", content: userMessage.message }],
+          messages: [{ role: "user", content: input }],
         }),
       });
 
@@ -48,15 +58,15 @@ export default function ChatClient({ messages }: ChatClientProps) {
       };
 
       setChat((prev) => [...prev, botMessage]);
-    } catch (err) {
-      console.error("Error talking to Gemini:", err);
-      const errorMessage: ChatMessage = {
-        id: Date.now() + 2,
-        message: "Error talking to Gemini.",
-        createdAt: new Date().toISOString(),
-      };
-
-      setChat((prev) => [...prev, errorMessage]);
+    } catch {
+      setChat((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 2,
+          message: "Error talking to Gemini.",
+          createdAt: new Date().toISOString(),
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +74,6 @@ export default function ChatClient({ messages }: ChatClientProps) {
 
   function handleClear() {
     setChat([]);
-    setInput("");
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -88,6 +97,7 @@ export default function ChatClient({ messages }: ChatClientProps) {
         {isLoading && (
           <div className="p-2 italic text-gray-500">Gemini is typing...</div>
         )}
+        <div ref={chatEndRef} />
       </div>
 
       <div className="flex space-x-2 mb-2">

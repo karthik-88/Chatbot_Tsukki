@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import prisma from "@/lib/prisma";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
 
 export async function POST(req: Request) {
@@ -26,10 +26,12 @@ export async function POST(req: Request) {
       });
     }
 
+    // ✅ Correct usage: configure provider first
+    const google = createGoogleGenerativeAI({ apiKey });
+
     const result = await generateText({
       model: google("gemini-2.0-flash"),
       prompt,
-      apiKey,
     });
 
     const reply = result.text || "Gemini didn't respond.";
